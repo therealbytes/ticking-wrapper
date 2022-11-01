@@ -1,6 +1,6 @@
 {
   "name": "@therealbytes/ticking-wrapper",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": "https://github.com/therealbytes/ticking-wrapper.git",
   "license": "MIT",
   "main": "src/index.ts",
