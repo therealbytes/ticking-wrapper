@@ -8,11 +8,13 @@ export default defineConfig({
     output: {
         dir: "dist",
         sourcemap: true,
+        banner: "#!/usr/bin/env node",
     },
     plugins: [typescript()],
     external: [
-        "@ethersproject/properties",
         "@ethersproject/providers",
-        "@ethersproject/wallet"
+        "@ethersproject/wallet",
+        "@ethersproject/contracts",
+        "@ethersproject/bytes",
     ]
 });
