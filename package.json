@@ -12,7 +12,9 @@
     "rollup": "^2.75.7",
     "typescript": "^4.7.4"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@ethersproject/providers": "^5.7.2"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -25,6 +27,7 @@
   "scripts": {
     "commit": "cz",
     "build": "rollup -c",
-    "release": "release-it"
+    "release": "release-it",
+    "start": "node --loader ts-node/esm ./src/index.ts"
   }
 }
