@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { spawn } from 'child_process';
 import { JsonRpcProvider } from '@ethersproject/providers';
 import { Wallet } from '@ethersproject/wallet';
