@@ -9,7 +9,8 @@ import {
 } from "./config";
 
 import { createLogger } from "./logger";
-import { extractCmds, validateCmd, startCmdProc } from "./cmd";
+import { extractCmds, validateCmd } from "./cmd";
+import { startCmdProc } from "./proc";
 import { startTick } from "./tick";
 
 function getTestnetConfig(testnet: string): TestnetConfig {
