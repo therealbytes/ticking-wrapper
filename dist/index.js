@@ -78,13 +78,25 @@ function setStorage(testnetConfig, provider, address, storage) {
     }
     return Promise.all(prom);
 }
+async function getOwnerAddress(tickConfig, provider) {
+    const signer0 = provider.getSigner(0);
+    const signer0Addr = await signer0.getAddress();
+    if (!signer0Addr) {
+        const configAddr0 = tickConfig.testnetConfig.addresses[0];
+        if (!configAddr0) {
+            return "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+        }
+        return configAddr0;
+    }
+    return signer0Addr;
+}
 async function insertTickContract(tickConfig, provider) {
     const testnetConfig = tickConfig.testnetConfig;
     const contractConfig = tickConfig.tickContractConfig;
+    const owner = await getOwnerAddress(tickConfig, provider);
     if (!contractConfig.storage) {
         contractConfig.storage = {};
     }
-    const owner = testnetConfig.addresses[0] || "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
     contractConfig.storage["0x0000000000000000000000000000000000000000000000000000000000000000"] = hexZeroPad(owner, 32);
     await Promise.all([
         setBalance(testnetConfig, provider, contractConfig.address, contractConfig.balance || "0x0"),
@@ -195,26 +207,57 @@ function validateCmd(cmd) {
     }
     return { ok: true, error: null };
 }
-function extractCmd(argv) {
-    let threshold;
+function extractCmds(argv) {
+    let pp;
     if (argv[0].endsWith("node")) {
-        threshold = 2;
+        pp = 1;
     }
     else {
-        threshold = 2;
+        pp = 1;
     }
-    const command = argv[threshold];
-    const options = argv.slice(threshold + 1);
-    return { command, options };
+    const tickCmd = { command: argv[pp], options: new Array() };
+    pp++;
+    while (pp < argv.length) {
+        const arg = argv[pp];
+        if (arg.startsWith("--")) {
+            tickCmd.options.push(arg);
+        }
+        else {
+            break;
+        }
+        pp++;
+    }
+    const cmd = { command: argv[pp], options: new Array() };
+    pp++;
+    cmd.options = argv.slice(pp);
+    return [tickCmd, cmd];
+}
+function overrideTickConfig(tickConfig, cmd) {
+    const tickTxConfig = tickConfig.tickTxConfig;
+    for (let ii = 0; ii < cmd.options.length; ii++) {
+        const opt = cmd.options[ii];
+        if (opt.startsWith("--tick-gas-limit=")) {
+            tickTxConfig.gasLimit = parseInt(opt.slice(17));
+        }
+    }
 }
 function main() {
+    var _a, _b;
     const logger = createLogger();
-    const cmd = extractCmd(process.argv);
-    const { ok, error } = validateCmd(cmd);
-    if (!ok) {
-        console.error("invalid command:", error === null || error === void 0 ? void 0 : error.message);
+    const [tickCmd, cmd] = extractCmds(process.argv);
+    let success;
+    success = validateCmd(tickCmd);
+    if (!success.ok) {
+        console.error("invalid ticking command:", (_a = success.error) === null || _a === void 0 ? void 0 : _a.message);
         process.exit();
     }
+    success = validateCmd(cmd);
+    if (!success.ok) {
+        console.error("invalid node command:", (_b = success.error) === null || _b === void 0 ? void 0 : _b.message);
+        process.exit();
+    }
+    logger.info("ticking command", tickCmd);
+    logger.info("node command", cmd);
     const testnetConfig = getTestnetConfig(cmd.command);
     if (testnetConfig === undefined) {
         console.error("testnet not supported");
@@ -226,6 +269,8 @@ function main() {
         tickTxConfig: tickTxConfig,
         signerConfig: signerConfig,
     };
+    overrideTickConfig(tickConfig, tickCmd);
+    logger.info("tick tx config", tickConfig.tickTxConfig);
     startCmdProc(cmd, logger);
     setTimeout(() => startTick(tickConfig, logger), 1000);
 }
