@@ -26,7 +26,7 @@ function overrideTickConfig(tickConfig: TickConfig, cmd: Command) {
 }
 
 function main() {
-  const logger = createLogger();
+  const logger = createLogger("[tick-wrap]");
 
   const [tickCmd, cmd] = extractCmds(process.argv);
 
