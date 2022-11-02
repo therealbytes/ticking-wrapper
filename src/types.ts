@@ -1,13 +1,15 @@
+export type Address = { address: string };
+export type Balance = { balance: string };
 export type AddressStorage = { [slot: string]: string };
 
-export type AddressConfig = { address: string };
-export type BalanceConfig = { balance?: string } & AddressConfig;
+export type AddressBalance = Address & Balance;
 export type ContractConfig = {
   abi: string[];
   bytecode?: string;
   storage?: AddressStorage;
-} & BalanceConfig;
-export type SignerConfig = { privateKey: string } & BalanceConfig;
+} & AddressBalance;
+// We derive the address from the private key
+export type SignerConfig = { privateKey: string } & Balance;
 
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };
 
