@@ -6,10 +6,12 @@ import {
 } from "./config";
 
 import { spawn } from "child_process";
-import { JsonRpcProvider } from "@ethersproject/providers";
+import { JsonRpcProvider, TransactionResponse } from "@ethersproject/providers";
 import { Wallet } from "@ethersproject/wallet";
-import { Contract } from "@ethersproject/contracts";
+import { Contract, EventFilter } from "@ethersproject/contracts";
+import { id } from "@ethersproject/hash";
 import { hexZeroPad } from "@ethersproject/bytes";
+import { toUtf8String } from "@ethersproject/strings";
 import {
   TickConfig,
   ContractConfig,
@@ -197,15 +199,33 @@ async function tick(
   const txParams = { nonce, gasPrice, ...tickConfig.tickTxConfig };
   const tx = await tickContract.tick(txParams);
   const receipt = await tx.wait();
-  logger.info("tick done");
-  logger.info("bn", receipt.blockNumber);
-  logger.info("txHash", receipt.transactionHash);
-  logger.info("success", receipt.status === 1);
+  logger.info(
+    "ticking done",
+    "\n\tBN:",
+    receipt.blockNumber,
+    "\n\ttxHash:",
+    receipt.transactionHash,
+    "\n\tsuccess:",
+    receipt.status === 1
+  );
+}
+
+function createErrorFilter(tickContract: Contract): EventFilter {
+  return {
+    address: tickContract.address,
+    topics: [[id("TickError(string)"), id("TickError(bytes)")]],
+  };
 }
 
 async function startTick(tickConfig: TickConfig, logger: Logger) {
   const provider = createTickProvider(tickConfig.testnetConfig);
   const tickContract = await createTickContract(tickConfig, provider);
+  const errorFilter = createErrorFilter(tickContract);
+
+  tickContract.on(errorFilter, (event) => {
+    const reason = toUtf8String(event.data);
+    logger.info("error calling target tick function:", reason);
+  });
 
   let nonce = await provider.getTransactionCount(
     tickConfig.signerConfig.address
