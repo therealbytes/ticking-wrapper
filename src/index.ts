@@ -26,6 +26,8 @@ function overrideTickConfig(tickConfig: TickConfig, cmd: Command) {
       txConfig.gasLimit = parseInt(opt.slice(17));
     } else if (opt.startsWith("--mute-logs=")) {
       cmdOptions.log.muteList = opt.slice(12).split(",");
+    } else if (opt.startsWith("--host=")) {
+      cmdOptions.host = opt.slice(7);
     }
   }
 }

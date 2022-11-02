@@ -15,6 +15,7 @@ export type TickCmdOptions = {
   log: {
     muteList: string[];
   };
+  host: string;
 };
 
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };

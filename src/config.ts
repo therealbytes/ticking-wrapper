@@ -10,6 +10,7 @@ export const tickCmdOptions: TickCmdOptions = {
   log: {
     muteList: [],
   },
+  host: "localhost",
 };
 
 export const tickContractConfig: ContractConfig = {

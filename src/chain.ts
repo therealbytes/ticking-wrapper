@@ -5,12 +5,12 @@ import { Wallet } from "@ethersproject/wallet";
 import { Contract, EventFilter } from "@ethersproject/contracts";
 import { id } from "@ethersproject/hash";
 import { hexZeroPad } from "@ethersproject/bytes";
-import { TickConfig, TestnetConfig } from "./types";
+import { TickConfig } from "./types";
 
-export function createTickProvider(
-  testnetConfig: TestnetConfig
-): JsonRpcProvider {
-  return new JsonRpcProvider(`http://localhost:${testnetConfig.port}`);
+export function createTickProvider(tickConfig: TickConfig): JsonRpcProvider {
+  return new JsonRpcProvider(
+    `http://${tickConfig.tickCmdOptions.host}:${tickConfig.testnetConfig.port}`
+  );
 }
 
 export async function createSigner(

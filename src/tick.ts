@@ -39,7 +39,7 @@ export async function tick(
 }
 
 export async function startTick(tickConfig: TickConfig, logger: Logger) {
-  const provider = createTickProvider(tickConfig.testnetConfig);
+  const provider = createTickProvider(tickConfig);
   const signer = await createSigner(tickConfig, provider);
   const owner = await getOwnerAddress(tickConfig, provider);
   const tickContract = await createTickContract(
