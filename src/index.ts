@@ -93,6 +93,22 @@ function setStorage(
   return Promise.all(prom);
 }
 
+async function getOwnerAddress(
+  tickConfig: TickConfig,
+  provider: JsonRpcProvider
+): Promise<string> {
+  const signer0 = provider.getSigner(0);
+  const signer0Addr = await signer0.getAddress();
+  if (!signer0Addr) {
+    const configAddr0 = tickConfig.testnetConfig.addresses[0];
+    if (!configAddr0) {
+      return "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+    }
+    return configAddr0;
+  }
+  return signer0Addr;
+}
+
 async function insertTickContract(
   tickConfig: TickConfig,
   provider: JsonRpcProvider
@@ -100,12 +116,11 @@ async function insertTickContract(
   const testnetConfig = tickConfig.testnetConfig;
   const contractConfig = tickConfig.tickContractConfig;
 
+  const owner = await getOwnerAddress(tickConfig, provider);
+
   if (!contractConfig.storage) {
     contractConfig.storage = {};
   }
-
-  const owner =
-    testnetConfig.addresses[0] || "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
   contractConfig.storage[
     "0x0000000000000000000000000000000000000000000000000000000000000000"
   ] = hexZeroPad(owner, 32);
