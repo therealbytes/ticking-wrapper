@@ -1,9 +1,16 @@
 import {
+  TickCmdOptions,
   ContractConfig,
   SignerConfig,
   TickTxConfig,
   TestnetConfigs,
 } from "./types";
+
+export const tickCmdOptions: TickCmdOptions = {
+  log: {
+    muteList: [],
+  },
+};
 
 export const tickContractConfig: ContractConfig = {
   address: "0x42000000000000000000000000000000000000A0",

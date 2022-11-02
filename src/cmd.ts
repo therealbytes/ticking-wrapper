@@ -43,9 +43,6 @@ export function validateCmd(cmd: Command): Success {
 }
 
 export function startCmdProc(cmd: Command, logger: Logger) {
-  const prefix = null;
-  const muteList = new Array<string>();
-  logger = createLogger(prefix, muteList);
   const cmdProc = createCmdProcess(cmd);
   handleStd(cmdProc, logger);
   handleError(cmdProc, logger);

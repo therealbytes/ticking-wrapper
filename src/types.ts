@@ -11,6 +11,12 @@ export type ContractConfig = {
 // We derive the address from the private key
 export type SignerConfig = { privateKey: string } & Balance;
 
+export type TickCmdOptions = {
+  log: {
+    muteList: string[];
+  };
+};
+
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };
 
 export type TestnetConfig = {
@@ -24,6 +30,7 @@ export type TestnetConfig = {
 };
 
 export type TickConfig = {
+  tickCmdOptions: TickCmdOptions;
   tickContractConfig: ContractConfig;
   tickTxConfig: TickTxConfig;
   testnetConfig: TestnetConfig;

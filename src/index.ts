@@ -1,10 +1,11 @@
 import { TickConfig, TestnetConfig, Command, Success } from "./types";
 
 import {
-  tickContractConfig as _tickContractConfig,
-  signerConfig as _signerConfig,
-  tickTxConfig as _tickTxConfig,
-  testnetConfigs as _testnetConfigs,
+  tickCmdOptions,
+  tickContractConfig,
+  signerConfig,
+  tickTxConfig,
+  testnetConfigs,
 } from "./config";
 
 import { createLogger } from "./logger";
@@ -12,22 +13,23 @@ import { extractCmds, validateCmd, startCmdProc } from "./cmd";
 import { startTick } from "./tick";
 
 function getTestnetConfig(testnet: string): TestnetConfig {
-  return _testnetConfigs[testnet];
+  return testnetConfigs[testnet];
 }
 
 function overrideTickConfig(tickConfig: TickConfig, cmd: Command) {
-  const tickTxConfig = tickConfig.tickTxConfig;
+  const txConfig = tickConfig.tickTxConfig;
+  const cmdOptions = tickConfig.tickCmdOptions;
   for (let ii = 0; ii < cmd.options.length; ii++) {
     const opt = cmd.options[ii];
     if (opt.startsWith("--tick-gas-limit=")) {
-      tickTxConfig.gasLimit = parseInt(opt.slice(17));
+      txConfig.gasLimit = parseInt(opt.slice(17));
+    } else if (opt.startsWith("--mute-logs=")) {
+      cmdOptions.log.muteList = opt.slice(12).split(",");
     }
   }
 }
 
 function main() {
-  const logger = createLogger("[tick-wrap]");
-
   const [tickCmd, cmd] = extractCmds(process.argv);
 
   let success: Success;
@@ -42,9 +44,6 @@ function main() {
     process.exit();
   }
 
-  logger.info("ticking command", tickCmd);
-  logger.info("devnet command", cmd);
-
   const testnetConfig = getTestnetConfig(cmd.command);
   if (testnetConfig === undefined) {
     console.error("testnet not supported");
@@ -52,16 +51,20 @@ function main() {
   }
 
   const tickConfig: TickConfig = {
+    tickCmdOptions,
+    tickContractConfig,
+    tickTxConfig,
     testnetConfig,
-    tickContractConfig: _tickContractConfig,
-    tickTxConfig: _tickTxConfig,
-    signerConfig: _signerConfig,
+    signerConfig,
   };
-  overrideTickConfig(tickConfig, tickCmd);
-  logger.info("tick tx config", tickConfig.tickTxConfig);
 
-  startCmdProc(cmd, logger);
-  setTimeout(() => startTick(tickConfig, logger), 1000);
+  overrideTickConfig(tickConfig, tickCmd);
+
+  const tickLogger = createLogger("[tick-wrap]");
+  const cmdLogger = createLogger(null, tickConfig.tickCmdOptions.log.muteList);
+
+  startCmdProc(cmd, cmdLogger);
+  setTimeout(() => startTick(tickConfig, tickLogger), 1000);
 }
 
 main();
