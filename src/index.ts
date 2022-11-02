@@ -287,27 +287,64 @@ function validateCmd(cmd: Command): Success {
   return { ok: true, error: null };
 }
 
-function extractCmd(argv: string[]): Command {
-  let threshold: number;
+function extractCmds(argv: string[]): [Command, Command] {
+  let pp: number;
   if (argv[0].endsWith("node")) {
-    threshold = 2;
+    pp = 1;
   } else {
-    threshold = 2;
+    pp = 1;
   }
-  const command = argv[threshold];
-  const options = argv.slice(threshold + 1);
-  return { command, options };
+
+  const tickCmd = { command: argv[pp], options: new Array<string>() };
+  pp++;
+  while (pp < argv.length) {
+    const arg = argv[pp];
+    if (arg.startsWith("--")) {
+      tickCmd.options.push(arg);
+    } else {
+      break;
+    }
+    pp++;
+  }
+
+  const cmd: Command = { command: argv[pp], options: new Array<string>() };
+  pp++;
+  cmd.options = argv.slice(pp);
+
+  return [tickCmd, cmd];
+}
+
+function overrideTickConfig(tickConfig: TickConfig, cmd: Command) {
+  const tickTxConfig = tickConfig.tickTxConfig;
+  for (let ii = 0; ii < cmd.options.length; ii++) {
+    const opt = cmd.options[ii];
+    if (opt.startsWith("--tick-gas-limit=")) {
+      tickTxConfig.gasLimit = parseInt(opt.slice(17));
+    }
+  }
 }
 
 function main() {
   const logger = createLogger();
 
-  const cmd = extractCmd(process.argv);
-  const { ok, error } = validateCmd(cmd);
-  if (!ok) {
-    console.error("invalid command:", error?.message);
+  const [tickCmd, cmd] = extractCmds(process.argv);
+
+  let success: Success;
+
+  success = validateCmd(tickCmd);
+  if (!success.ok) {
+    console.error("invalid ticking command:", success.error?.message);
     process.exit();
   }
+
+  success = validateCmd(cmd);
+  if (!success.ok) {
+    console.error("invalid node command:", success.error?.message);
+    process.exit();
+  }
+
+  logger.info("ticking command", tickCmd);
+  logger.info("node command", cmd);
 
   const testnetConfig = getTestnetConfig(cmd.command);
   if (testnetConfig === undefined) {
@@ -321,6 +358,9 @@ function main() {
     tickTxConfig: _tickTxConfig,
     signerConfig: _signerConfig,
   };
+
+  overrideTickConfig(tickConfig, tickCmd);
+  logger.info("tick tx config", tickConfig.tickTxConfig);
 
   startCmdProc(cmd, logger);
   setTimeout(() => startTick(tickConfig, logger), 1000);
