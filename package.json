@@ -4,7 +4,7 @@
   "version": "0.0.7",
   "repository": "https://github.com/therealbytes/ticking-wrapper.git",
   "license": "MIT",
-  "main": "src/main.ts",
+  "main": "dist/index.js",
   "type": "module",
   "bin": {
     "ticking": "dist/main.js"
