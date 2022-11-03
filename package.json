@@ -1,7 +1,7 @@
 {
   "name": "@therealbytes/ticking-wrapper",
   "description": "A ticking-chain wrapper for local development ethereum nodes.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": "https://github.com/therealbytes/ticking-wrapper.git",
   "license": "MIT",
   "main": "src/main.ts",
