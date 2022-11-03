@@ -1,12 +1,18 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process';
 import { JsonRpcProvider } from '@ethersproject/providers';
 import { Wallet } from '@ethersproject/wallet';
 import { Contract } from '@ethersproject/contracts';
 import { id } from '@ethersproject/hash';
 import { hexZeroPad } from '@ethersproject/bytes';
 import { toUtf8String } from '@ethersproject/strings';
+import { spawn } from 'child_process';
 
+const tickCmdOptions = {
+    log: {
+        muteList: [],
+    },
+    host: "localhost",
+};
 const tickContractConfig = {
     address: "0x42000000000000000000000000000000000000A0",
     abi: ["event TickError(string)", "event TickError(bytes)", "function tick()"],
@@ -19,7 +25,6 @@ const tickContractConfig = {
 };
 const signerConfig = {
     privateKey: "0x1111111100000000000000000000000000000000000000000000000000000000",
-    address: "0x491E7508857914E87Bdd106Ae3f6B1a38D6DfB81",
     balance: "0x200000000000000000000000000000000000000000000000000000000000000",
 };
 const tickTxConfig = {
@@ -27,7 +32,7 @@ const tickTxConfig = {
 };
 const testnetConfigs = {
     anvil: {
-        addresses: ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"],
+        addresses: [],
         port: 8545,
         methods: {
             setCode: "anvil_setCode",
@@ -37,32 +42,37 @@ const testnetConfigs = {
     },
 };
 
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-function createLogger(logPrefix = "[tick-wrap]") {
-    if (logPrefix === null) {
-        return {
-            info: console.log,
-            warning: console.warn,
-            error: console.error,
-        };
-    }
-    return {
-        info: (...args) => {
-            console.log(logPrefix, ...args);
-        },
-        warning: (...args) => {
-            console.warn(logPrefix, ...args);
-        },
-        error: (...args) => {
-            console.error(logPrefix, ...args);
-        },
+function createFilterFunc(muteList) {
+    return (...args) => {
+        if (!args || args.length == 0) {
+            return false;
+        }
+        // return !args.some((arg) => muteList.includes(arg));
+        return !muteList.some((muteWord) => args[0].startsWith(muteWord));
     };
 }
-function getTestnetConfig(testnet) {
-    return testnetConfigs[testnet];
+function createLogFunc(logPrefix, consoleFunc) {
+    const logPrefixArray = logPrefix ? [logPrefix] : [];
+    return (...args) => {
+        consoleFunc(...logPrefixArray, ...args);
+    };
 }
+function createFilteredLogFunc(filterFunc, logFunc) {
+    return (...args) => {
+        if (filterFunc(...args)) {
+            logFunc(...args);
+        }
+    };
+}
+function createLogger(logPrefix = null, muteList = []) {
+    const filterFunc = createFilterFunc(muteList);
+    return {
+        info: createFilteredLogFunc(filterFunc, createLogFunc(logPrefix, console.info)),
+        warning: createFilteredLogFunc(filterFunc, createLogFunc(logPrefix, console.warn)),
+        error: createFilteredLogFunc(filterFunc, createLogFunc(logPrefix, console.error)),
+    };
+}
+
 function setCode(testnetConfig, provider, address, bytecode) {
     return provider.send(testnetConfig.methods.setCode, [address, bytecode]);
 }
@@ -80,22 +90,27 @@ function setStorage(testnetConfig, provider, address, storage) {
     }
     return Promise.all(prom);
 }
-async function getOwnerAddress(tickConfig, provider) {
-    const signer0 = provider.getSigner(0);
-    const signer0Addr = await signer0.getAddress();
-    if (!signer0Addr) {
-        const configAddr0 = tickConfig.testnetConfig.addresses[0];
-        if (!configAddr0) {
-            return "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-        }
-        return configAddr0;
-    }
-    return signer0Addr;
+
+function createTickProvider(tickConfig) {
+    return new JsonRpcProvider(`http://${tickConfig.tickCmdOptions.host}:${tickConfig.testnetConfig.port}`);
 }
-async function insertTickContract(tickConfig, provider) {
+async function createSigner(tickConfig, provider) {
+    const wallet = new Wallet(tickConfig.signerConfig.privateKey, provider);
+    await insertSigner(wallet.address, tickConfig, provider);
+    return wallet;
+}
+async function insertSigner(address, tickConfig, provider) {
+    await setBalance(tickConfig.testnetConfig, provider, address, tickConfig.signerConfig.balance || "0x0");
+}
+async function createTickContract(signer, owner, tickConfig, provider) {
+    await insertTickContract(owner, tickConfig, provider);
+    const contractConfig = tickConfig.tickContractConfig;
+    const contract = new Contract(contractConfig.address, contractConfig.abi, signer);
+    return contract;
+}
+async function insertTickContract(owner, tickConfig, provider) {
     const testnetConfig = tickConfig.testnetConfig;
     const contractConfig = tickConfig.tickContractConfig;
-    const owner = await getOwnerAddress(tickConfig, provider);
     if (!contractConfig.storage) {
         contractConfig.storage = {};
     }
@@ -106,24 +121,15 @@ async function insertTickContract(tickConfig, provider) {
         setStorage(testnetConfig, provider, contractConfig.address, contractConfig.storage),
     ]);
 }
-async function insertSigner(tickConfig, provider) {
-    await setBalance(tickConfig.testnetConfig, provider, tickConfig.signerConfig.address, tickConfig.signerConfig.balance || "0x0");
+function createErrorFilter(tickContract) {
+    return {
+        address: tickContract.address,
+        topics: [[id("TickError(string)"), id("TickError(bytes)")]],
+    };
 }
-function createSigner(signerConfig, provider) {
-    return new Wallet(signerConfig.privateKey, provider);
-}
-async function createTickContract(tickConfig, provider) {
-    await Promise.all([
-        insertTickContract(tickConfig, provider),
-        insertSigner(tickConfig, provider),
-    ]);
-    const signer = createSigner(tickConfig.signerConfig, provider);
-    const contractConfig = tickConfig.tickContractConfig;
-    const contract = new Contract(contractConfig.address, contractConfig.abi, signer);
-    return contract;
-}
-function createTickProvider(testnetConfig) {
-    return new JsonRpcProvider(`http://localhost:${testnetConfig.port}`);
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 async function tick(nonce, tickConfig, tickContract, logger) {
     logger.info("ticking...");
@@ -134,21 +140,17 @@ async function tick(nonce, tickConfig, tickContract, logger) {
     const receipt = await tx.wait();
     logger.info("ticking done", "\n\tBN:", receipt.blockNumber, "\n\ttxHash:", receipt.transactionHash, "\n\tsuccess:", receipt.status === 1);
 }
-function createErrorFilter(tickContract) {
-    return {
-        address: tickContract.address,
-        topics: [[id("TickError(string)"), id("TickError(bytes)")]],
-    };
-}
 async function startTick(tickConfig, logger) {
-    const provider = createTickProvider(tickConfig.testnetConfig);
-    const tickContract = await createTickContract(tickConfig, provider);
+    const provider = createTickProvider(tickConfig);
+    const signer = await createSigner(tickConfig, provider);
+    const owner = await getOwnerAddress(tickConfig, provider);
+    const tickContract = await createTickContract(signer, owner, tickConfig, provider);
     const errorFilter = createErrorFilter(tickContract);
     tickContract.on(errorFilter, (event) => {
         const reason = toUtf8String(event.data);
         logger.info("error calling target tick function:", reason);
     });
-    let nonce = await provider.getTransactionCount(tickConfig.signerConfig.address);
+    let nonce = await provider.getTransactionCount(signer.address);
     let blockNumber = 0;
     // Subscribing to new blocks is not always reliable, so we poll for new blocks
     while (true) {
@@ -163,6 +165,27 @@ async function startTick(tickConfig, logger) {
         nonce++;
         await sleep(500);
     }
+}
+async function getOwnerAddress(tickConfig, provider) {
+    const signer0 = provider.getSigner(0);
+    const signer0Addr = await signer0.getAddress();
+    if (!signer0Addr) {
+        const configAddr0 = tickConfig.testnetConfig.addresses[0];
+        if (!configAddr0) {
+            return "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+        }
+        return configAddr0;
+    }
+    return signer0Addr;
+}
+
+function startCmdProc(cmd, logger) {
+    const cmdProc = createCmdProcess(cmd);
+    handleStd(cmdProc, logger);
+    handleError(cmdProc, logger);
+    handleClose(cmdProc, logger);
+    handleNodeClose(cmdProc);
+    pipeSignal(cmdProc);
 }
 function createCmdProcess(cmd) {
     return spawn(cmd.command, cmd.options);
@@ -197,92 +220,6 @@ function pipeSignal(proc, logger) {
         proc.kill("SIGINT");
     });
 }
-function startCmdProc(cmd, logger) {
-    // const logPrefix = `[${command}]`;
-    const logPrefix = null;
-    logger = createLogger(logPrefix);
-    const cmdProc = createCmdProcess(cmd);
-    handleStd(cmdProc, logger);
-    handleError(cmdProc, logger);
-    handleClose(cmdProc, logger);
-    handleNodeClose(cmdProc);
-    pipeSignal(cmdProc);
-}
-function validateCmd(cmd) {
-    if (cmd.command === undefined) {
-        return { ok: false, error: new Error("command is undefined") };
-    }
-    if (cmd.command.length == 0) {
-        return { ok: false, error: new Error("command is empty") };
-    }
-    return { ok: true, error: null };
-}
-function extractCmds(argv) {
-    let pp;
-    if (argv[0].endsWith("node")) {
-        pp = 1;
-    }
-    else {
-        pp = 1;
-    }
-    const tickCmd = { command: argv[pp], options: new Array() };
-    pp++;
-    while (pp < argv.length) {
-        const arg = argv[pp];
-        if (arg.startsWith("--")) {
-            tickCmd.options.push(arg);
-        }
-        else {
-            break;
-        }
-        pp++;
-    }
-    const cmd = { command: argv[pp], options: new Array() };
-    pp++;
-    cmd.options = argv.slice(pp);
-    return [tickCmd, cmd];
-}
-function overrideTickConfig(tickConfig, cmd) {
-    const tickTxConfig = tickConfig.tickTxConfig;
-    for (let ii = 0; ii < cmd.options.length; ii++) {
-        const opt = cmd.options[ii];
-        if (opt.startsWith("--tick-gas-limit=")) {
-            tickTxConfig.gasLimit = parseInt(opt.slice(17));
-        }
-    }
-}
-function main() {
-    var _a, _b;
-    const logger = createLogger();
-    const [tickCmd, cmd] = extractCmds(process.argv);
-    let success;
-    success = validateCmd(tickCmd);
-    if (!success.ok) {
-        console.error("invalid ticking command:", (_a = success.error) === null || _a === void 0 ? void 0 : _a.message);
-        process.exit();
-    }
-    success = validateCmd(cmd);
-    if (!success.ok) {
-        console.error("invalid node command:", (_b = success.error) === null || _b === void 0 ? void 0 : _b.message);
-        process.exit();
-    }
-    logger.info("ticking command", tickCmd);
-    logger.info("node command", cmd);
-    const testnetConfig = getTestnetConfig(cmd.command);
-    if (testnetConfig === undefined) {
-        console.error("testnet not supported");
-        process.exit();
-    }
-    const tickConfig = {
-        testnetConfig,
-        tickContractConfig: tickContractConfig,
-        tickTxConfig: tickTxConfig,
-        signerConfig: signerConfig,
-    };
-    overrideTickConfig(tickConfig, tickCmd);
-    logger.info("tick tx config", tickConfig.tickTxConfig);
-    startCmdProc(cmd, logger);
-    setTimeout(() => startTick(tickConfig, logger), 1000);
-}
-main();
+
+export { createLogger, signerConfig, startCmdProc, startTick, testnetConfigs, tick, tickCmdOptions, tickContractConfig, tickTxConfig };
 //# sourceMappingURL=index.js.map
