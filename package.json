@@ -4,10 +4,10 @@
   "version": "0.0.5",
   "repository": "https://github.com/therealbytes/ticking-wrapper.git",
   "license": "MIT",
-  "main": "src/index.ts",
+  "main": "src/main.ts",
   "type": "module",
   "bin": {
-    "ticking": "dist/index.js"
+    "ticking": "dist/main.js"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.3.3",
@@ -34,6 +34,6 @@
     "commit": "cz",
     "build": "rollup -c",
     "release": "release-it",
-    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node ./src/index.ts"
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node ./src/main.ts"
   }
 }

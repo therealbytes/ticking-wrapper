@@ -1,9 +1,17 @@
 import {
+  TickCmdOptions,
   ContractConfig,
   SignerConfig,
   TickTxConfig,
   TestnetConfigs,
 } from "./types";
+
+export const tickCmdOptions: TickCmdOptions = {
+  log: {
+    muteList: [],
+  },
+  host: "localhost",
+};
 
 export const tickContractConfig: ContractConfig = {
   address: "0x42000000000000000000000000000000000000A0",
@@ -22,7 +30,6 @@ export const tickContractConfig: ContractConfig = {
 export const signerConfig: SignerConfig = {
   privateKey:
     "0x1111111100000000000000000000000000000000000000000000000000000000",
-  address: "0x491E7508857914E87Bdd106Ae3f6B1a38D6DfB81",
   balance: "0x200000000000000000000000000000000000000000000000000000000000000",
 };
 
@@ -32,7 +39,7 @@ export const tickTxConfig: TickTxConfig = {
 
 export const testnetConfigs: TestnetConfigs = {
   anvil: {
-    addresses: ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"],
+    addresses: [],
     port: 8545,
     methods: {
       setCode: "anvil_setCode",
