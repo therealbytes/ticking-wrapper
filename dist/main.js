@@ -1,10 +1,11 @@
+#!/usr/bin/env node
+import { spawn } from 'child_process';
 import { JsonRpcProvider } from '@ethersproject/providers';
 import { Wallet } from '@ethersproject/wallet';
 import { Contract } from '@ethersproject/contracts';
 import { id } from '@ethersproject/hash';
 import { hexZeroPad } from '@ethersproject/bytes';
 import { toUtf8String } from '@ethersproject/strings';
-import { spawn } from 'child_process';
 
 const tickCmdOptions = {
     log: {
@@ -70,6 +71,83 @@ function createLogger(logPrefix = null, muteList = []) {
         warning: createFilteredLogFunc(filterFunc, createLogFunc(logPrefix, console.warn)),
         error: createFilteredLogFunc(filterFunc, createLogFunc(logPrefix, console.error)),
     };
+}
+
+function extractCmds(argv) {
+    let pp;
+    if (argv[0].endsWith("node")) {
+        pp = 1;
+    }
+    else {
+        pp = 1;
+    }
+    const tickCmd = { command: argv[pp], options: new Array() };
+    pp++;
+    while (pp < argv.length) {
+        const arg = argv[pp];
+        if (arg.startsWith("--")) {
+            tickCmd.options.push(arg);
+        }
+        else {
+            break;
+        }
+        pp++;
+    }
+    const cmd = { command: argv[pp], options: new Array() };
+    pp++;
+    cmd.options = argv.slice(pp);
+    return [tickCmd, cmd];
+}
+function validateCmd(cmd) {
+    if (cmd.command === undefined) {
+        return { ok: false, error: new Error("command is undefined") };
+    }
+    if (cmd.command.length == 0) {
+        return { ok: false, error: new Error("command is empty") };
+    }
+    return { ok: true, error: null };
+}
+
+function startCmdProc(cmd, logger) {
+    const cmdProc = createCmdProcess(cmd);
+    handleStd(cmdProc, logger);
+    handleError(cmdProc, logger);
+    handleClose(cmdProc, logger);
+    handleNodeClose(cmdProc);
+    pipeSignal(cmdProc);
+}
+function createCmdProcess(cmd) {
+    return spawn(cmd.command, cmd.options);
+}
+function handleStd(proc, logger) {
+    var _a, _b;
+    (_a = proc.stdout) === null || _a === void 0 ? void 0 : _a.on("data", (data) => {
+        logger.info(data.toString());
+    });
+    (_b = proc.stderr) === null || _b === void 0 ? void 0 : _b.on("data", (data) => {
+        logger.warning(data.toString());
+    });
+}
+function handleError(proc, logger) {
+    proc.on("error", (error) => {
+        logger.error(error.message);
+    });
+}
+function handleClose(proc, logger) {
+    proc.on("close", (code) => {
+        logger.info("\ncommand subprocess exited with code", code);
+        process.exit();
+    });
+}
+function handleNodeClose(proc, logger) {
+    process.on("exit", () => {
+        proc.kill("SIGINT");
+    });
+}
+function pipeSignal(proc, logger) {
+    process.on("SIGINT", () => {
+        proc.kill("SIGINT");
+    });
 }
 
 function setCode(testnetConfig, provider, address, bytecode) {
@@ -178,47 +256,56 @@ async function getOwnerAddress(tickConfig, provider) {
     return signer0Addr;
 }
 
-function startCmdProc(cmd, logger) {
-    const cmdProc = createCmdProcess(cmd);
-    handleStd(cmdProc, logger);
-    handleError(cmdProc, logger);
-    handleClose(cmdProc, logger);
-    handleNodeClose(cmdProc);
-    pipeSignal(cmdProc);
+function getTestnetConfig(testnet) {
+    return testnetConfigs[testnet];
 }
-function createCmdProcess(cmd) {
-    return spawn(cmd.command, cmd.options);
+function overrideTickConfig(tickConfig, cmd) {
+    const txConfig = tickConfig.tickTxConfig;
+    const cmdOptions = tickConfig.tickCmdOptions;
+    for (let ii = 0; ii < cmd.options.length; ii++) {
+        const opt = cmd.options[ii];
+        if (opt.startsWith("--tick-gas-limit=")) {
+            txConfig.gasLimit = parseInt(opt.slice(17));
+        }
+        else if (opt.startsWith("--mute-logs=")) {
+            cmdOptions.log.muteList = opt.slice(12).split(",");
+        }
+        else if (opt.startsWith("--host=")) {
+            cmdOptions.host = opt.slice(7);
+        }
+    }
 }
-function handleStd(proc, logger) {
+function main() {
     var _a, _b;
-    (_a = proc.stdout) === null || _a === void 0 ? void 0 : _a.on("data", (data) => {
-        logger.info(data.toString());
-    });
-    (_b = proc.stderr) === null || _b === void 0 ? void 0 : _b.on("data", (data) => {
-        logger.warning(data.toString());
-    });
-}
-function handleError(proc, logger) {
-    proc.on("error", (error) => {
-        logger.error(error.message);
-    });
-}
-function handleClose(proc, logger) {
-    proc.on("close", (code) => {
-        logger.info("\ncommand subprocess exited with code", code);
+    const [tickCmd, cmd] = extractCmds(process.argv);
+    let success;
+    success = validateCmd(tickCmd);
+    if (!success.ok) {
+        console.error("invalid ticking command:", (_a = success.error) === null || _a === void 0 ? void 0 : _a.message);
         process.exit();
-    });
+    }
+    success = validateCmd(cmd);
+    if (!success.ok) {
+        console.error("invalid node command:", (_b = success.error) === null || _b === void 0 ? void 0 : _b.message);
+        process.exit();
+    }
+    const testnetConfig = getTestnetConfig(cmd.command);
+    if (testnetConfig === undefined) {
+        console.error("testnet not supported");
+        process.exit();
+    }
+    const tickConfig = {
+        tickCmdOptions,
+        tickContractConfig,
+        tickTxConfig,
+        testnetConfig,
+        signerConfig,
+    };
+    overrideTickConfig(tickConfig, tickCmd);
+    const tickLogger = createLogger("[tick-wrap]");
+    const cmdLogger = createLogger(null, tickConfig.tickCmdOptions.log.muteList);
+    startCmdProc(cmd, cmdLogger);
+    setTimeout(() => startTick(tickConfig, tickLogger), 1000);
 }
-function handleNodeClose(proc, logger) {
-    process.on("exit", () => {
-        proc.kill("SIGINT");
-    });
-}
-function pipeSignal(proc, logger) {
-    process.on("SIGINT", () => {
-        proc.kill("SIGINT");
-    });
-}
-
-export { createLogger, signerConfig, startCmdProc, startTick, testnetConfigs, tick, tickCmdOptions, tickContractConfig, tickTxConfig };
-//# sourceMappingURL=index.js.map
+main();
+//# sourceMappingURL=main.js.map

@@ -1,20 +1,27 @@
+export declare type Address = {
+    address: string;
+};
+export declare type Balance = {
+    balance: string;
+};
 export declare type AddressStorage = {
     [slot: string]: string;
 };
-export declare type AddressConfig = {
-    address: string;
-};
-export declare type BalanceConfig = {
-    balance?: string;
-} & AddressConfig;
+export declare type AddressBalance = Address & Balance;
 export declare type ContractConfig = {
     abi: string[];
     bytecode?: string;
     storage?: AddressStorage;
-} & BalanceConfig;
+} & AddressBalance;
 export declare type SignerConfig = {
     privateKey: string;
-} & BalanceConfig;
+} & Balance;
+export declare type TickCmdOptions = {
+    log: {
+        muteList: string[];
+    };
+    host: string;
+};
 export declare type TickTxConfig = {
     gasLimit?: number;
     gasPrice?: number;
@@ -29,6 +36,7 @@ export declare type TestnetConfig = {
     };
 };
 export declare type TickConfig = {
+    tickCmdOptions: TickCmdOptions;
     tickContractConfig: ContractConfig;
     tickTxConfig: TickTxConfig;
     testnetConfig: TestnetConfig;
