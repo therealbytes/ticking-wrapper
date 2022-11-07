@@ -8,7 +8,9 @@ Install
 
 Start chain
 
-`npx ticking anvil # <anvil command line parameters>`
+`npx ticking --tick-gas-limit=<tick gas limit> anvil <anvil command line parameters>`
+
+Make sure to set the values of ticking command line parameters with equals signs, not a space. `--tick-gas-limit=X`, not `--tick-gas-limit X`.
 
 Set the tick target (must follow the tick interface)
 
