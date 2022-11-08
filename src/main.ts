@@ -28,6 +28,8 @@ function overrideTickConfig(tickConfig: TickConfig, cmd: Command) {
       cmdOptions.log.muteList = opt.slice(12).split(",");
     } else if (opt.startsWith("--host=")) {
       cmdOptions.host = opt.slice(7);
+    } else if (opt.startsWith("--hollow")) {
+      cmdOptions.hollow = true;
     }
   }
 }
@@ -66,8 +68,12 @@ function main() {
   const tickLogger = createLogger("[tick-wrap]");
   const cmdLogger = createLogger(null, tickConfig.tickCmdOptions.log.muteList);
 
-  startCmdProc(cmd, cmdLogger);
-  setTimeout(() => startTick(tickConfig, tickLogger), 1000);
+  if (tickConfig.tickCmdOptions.hollow) {
+    startTick(tickConfig, tickLogger);
+  } else {
+    startCmdProc(cmd, cmdLogger);
+    setTimeout(() => startTick(tickConfig, tickLogger), 1000);
+  }
 }
 
 main();
