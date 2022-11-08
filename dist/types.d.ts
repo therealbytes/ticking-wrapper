@@ -21,6 +21,7 @@ export declare type TickCmdOptions = {
         muteList: string[];
     };
     host: string;
+    hollow: boolean;
 };
 export declare type TickTxConfig = {
     gasLimit?: number;
