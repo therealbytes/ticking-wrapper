@@ -1,6 +1,6 @@
 import { setBalance, setCode, setStorage } from "./rpc";
 
-import { JsonRpcProvider } from "@ethersproject/providers";
+import { JsonRpcProvider, WebSocketProvider } from "@ethersproject/providers";
 import { Wallet } from "@ethersproject/wallet";
 import { Contract, EventFilter } from "@ethersproject/contracts";
 import { id } from "@ethersproject/hash";
@@ -8,9 +8,19 @@ import { hexZeroPad } from "@ethersproject/bytes";
 import { TickConfig } from "./types";
 
 export function createTickProvider(tickConfig: TickConfig): JsonRpcProvider {
-  return new JsonRpcProvider(
-    `http://${tickConfig.tickCmdOptions.host}:${tickConfig.testnetConfig.port}`
-  );
+  const host = tickConfig.tickCmdOptions.host;
+  const port = tickConfig.testnetConfig.port;
+  if (host.startsWith("ws://") || host.startsWith("wss://")) {
+    return new WebSocketProvider(`${host}:${port}`);
+  }
+  if (host.startsWith("http://") || host.startsWith("https://")) {
+    return new JsonRpcProvider(`${host}:${port}`);
+  }
+  if (tickConfig.testnetConfig.websocket) {
+    return new WebSocketProvider(`ws://${host}:${port}`);
+  } else {
+    return new JsonRpcProvider(`http://${host}:${port}`);
+  }
 }
 
 export async function createSigner(

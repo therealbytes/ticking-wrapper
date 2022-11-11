@@ -22,6 +22,7 @@ export type TickCmdOptions = {
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };
 
 export type TestnetConfig = {
+  websocket: boolean;
   port: number;
   addresses: string[];
   methods: {

@@ -8,7 +8,7 @@ import {
 } from "./chain";
 
 import { Contract } from "@ethersproject/contracts";
-import { JsonRpcProvider } from "@ethersproject/providers";
+import { JsonRpcProvider, WebSocketProvider } from "@ethersproject/providers";
 import { toUtf8String } from "@ethersproject/strings";
 
 function sleep(ms: number): Promise<unknown> {
@@ -58,18 +58,31 @@ export async function startTick(tickConfig: TickConfig, logger: Logger) {
   let nonce = await provider.getTransactionCount(signer.address);
   let blockNumber = 0;
 
-  // Subscribing to new blocks is not always reliable, so we poll for new blocks
-  while (true) {
-    const currentBlockNumber = await provider.getBlockNumber();
-    if (currentBlockNumber <= blockNumber) {
-      await sleep(50);
-      continue;
-    }
-    blockNumber = currentBlockNumber;
+  const wTick = (blockNumber: number) => {
     logger.info("new block", blockNumber);
     tick(nonce, tickConfig, tickContract, logger);
     nonce++;
-    await sleep(500);
+  };
+
+  if (provider instanceof WebSocketProvider) {
+    provider.on("block", async (blockNumber) => wTick(blockNumber));
+  } else {
+    while (true) {
+      // Subscribing to new blocks is not reliable, so we poll for new blocks
+      let currentBlockNumber: number = 0;
+      try {
+        currentBlockNumber = await provider.getBlockNumber();
+      } catch (error) {
+        logger.error("error getting block number:", error);
+      }
+      if (currentBlockNumber <= blockNumber) {
+        await sleep(100);
+        continue;
+      }
+      blockNumber = currentBlockNumber;
+      wTick(blockNumber);
+      await sleep(500);
+    }
   }
 }
 

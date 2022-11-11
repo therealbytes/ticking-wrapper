@@ -40,6 +40,7 @@ export const tickTxConfig: TickTxConfig = {
 
 export const testnetConfigs: TestnetConfigs = {
   anvil: {
+    websocket: true,
     addresses: [],
     port: 8545,
     methods: {
