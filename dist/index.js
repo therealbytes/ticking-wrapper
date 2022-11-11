@@ -11,6 +11,7 @@ const tickCmdOptions = {
         muteList: [],
     },
     host: "localhost",
+    hollow: false,
 };
 const tickContractConfig = {
     address: "0x42000000000000000000000000000000000000A0",

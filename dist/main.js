@@ -12,6 +12,7 @@ const tickCmdOptions = {
         muteList: [],
     },
     host: "localhost",
+    hollow: false,
 };
 const tickContractConfig = {
     address: "0x42000000000000000000000000000000000000A0",
@@ -273,6 +274,9 @@ function overrideTickConfig(tickConfig, cmd) {
         else if (opt.startsWith("--host=")) {
             cmdOptions.host = opt.slice(7);
         }
+        else if (opt.startsWith("--hollow")) {
+            cmdOptions.hollow = true;
+        }
     }
 }
 function main() {
@@ -304,8 +308,13 @@ function main() {
     overrideTickConfig(tickConfig, tickCmd);
     const tickLogger = createLogger("[tick-wrap]");
     const cmdLogger = createLogger(null, tickConfig.tickCmdOptions.log.muteList);
-    startCmdProc(cmd, cmdLogger);
-    setTimeout(() => startTick(tickConfig, tickLogger), 1000);
+    if (tickConfig.tickCmdOptions.hollow) {
+        startTick(tickConfig, tickLogger);
+    }
+    else {
+        startCmdProc(cmd, cmdLogger);
+        setTimeout(() => startTick(tickConfig, tickLogger), 1000);
+    }
 }
 main();
 //# sourceMappingURL=main.js.map

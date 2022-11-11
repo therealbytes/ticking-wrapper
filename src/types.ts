@@ -16,6 +16,7 @@ export type TickCmdOptions = {
     muteList: string[];
   };
   host: string;
+  hollow: boolean;
 };
 
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };

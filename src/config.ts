@@ -11,6 +11,7 @@ export const tickCmdOptions: TickCmdOptions = {
     muteList: [],
   },
   host: "localhost",
+  hollow: false,
 };
 
 export const tickContractConfig: ContractConfig = {
