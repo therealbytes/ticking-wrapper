@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'child_process';
-import { JsonRpcProvider } from '@ethersproject/providers';
+import { WebSocketProvider, JsonRpcProvider } from '@ethersproject/providers';
 import { Wallet } from '@ethersproject/wallet';
 import { Contract } from '@ethersproject/contracts';
 import { id } from '@ethersproject/hash';
@@ -33,6 +33,7 @@ const tickTxConfig = {
 };
 const testnetConfigs = {
     anvil: {
+        websocket: true,
         addresses: [],
         port: 8545,
         methods: {
@@ -170,7 +171,20 @@ function setStorage(testnetConfig, provider, address, storage) {
 }
 
 function createTickProvider(tickConfig) {
-    return new JsonRpcProvider(`http://${tickConfig.tickCmdOptions.host}:${tickConfig.testnetConfig.port}`);
+    const host = tickConfig.tickCmdOptions.host;
+    const port = tickConfig.testnetConfig.port;
+    if (host.startsWith("ws://") || host.startsWith("wss://")) {
+        return new WebSocketProvider(`${host}:${port}`);
+    }
+    if (host.startsWith("http://") || host.startsWith("https://")) {
+        return new JsonRpcProvider(`${host}:${port}`);
+    }
+    if (tickConfig.testnetConfig.websocket) {
+        return new WebSocketProvider(`ws://${host}:${port}`);
+    }
+    else {
+        return new JsonRpcProvider(`http://${host}:${port}`);
+    }
 }
 async function createSigner(tickConfig, provider) {
     const wallet = new Wallet(tickConfig.signerConfig.privateKey, provider);
@@ -230,18 +244,32 @@ async function startTick(tickConfig, logger) {
     });
     let nonce = await provider.getTransactionCount(signer.address);
     let blockNumber = 0;
-    // Subscribing to new blocks is not always reliable, so we poll for new blocks
-    while (true) {
-        const currentBlockNumber = await provider.getBlockNumber();
-        if (currentBlockNumber <= blockNumber) {
-            await sleep(50);
-            continue;
-        }
-        blockNumber = currentBlockNumber;
+    const wTick = (blockNumber) => {
         logger.info("new block", blockNumber);
         tick(nonce, tickConfig, tickContract, logger);
         nonce++;
-        await sleep(500);
+    };
+    if (provider instanceof WebSocketProvider) {
+        provider.on("block", async (blockNumber) => wTick(blockNumber));
+    }
+    else {
+        while (true) {
+            // Subscribing to new blocks is not reliable, so we poll for new blocks
+            let currentBlockNumber = 0;
+            try {
+                currentBlockNumber = await provider.getBlockNumber();
+            }
+            catch (error) {
+                logger.error("error getting block number:", error);
+            }
+            if (currentBlockNumber <= blockNumber) {
+                await sleep(100);
+                continue;
+            }
+            blockNumber = currentBlockNumber;
+            wTick(blockNumber);
+            await sleep(500);
+        }
     }
 }
 async function getOwnerAddress(tickConfig, provider) {

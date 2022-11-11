@@ -28,6 +28,7 @@ export declare type TickTxConfig = {
     gasPrice?: number;
 };
 export declare type TestnetConfig = {
+    websocket: boolean;
     port: number;
     addresses: string[];
     methods: {
