@@ -33,6 +33,7 @@ const tickTxConfig = {
 };
 const testnetConfigs = {
     anvil: {
+        genesis: false,
         websocket: true,
         addresses: [],
         port: 8545,
@@ -41,6 +42,12 @@ const testnetConfigs = {
             setBalance: "anvil_setBalance",
             setStorage: "anvil_setStorageAt",
         },
+    },
+    geth: {
+        genesis: true,
+        websocket: true,
+        addresses: [],
+        port: 8545,
     },
 };
 
@@ -152,20 +159,29 @@ function pipeSignal(proc, logger) {
     });
 }
 
+function mustHaveMethods(testnetConfig) {
+    if (!testnetConfig.methods) {
+        throw new Error("Testnet config must have methods");
+    }
+    return testnetConfig.methods;
+}
 function setCode(testnetConfig, provider, address, bytecode) {
-    return provider.send(testnetConfig.methods.setCode, [address, bytecode]);
+    const methods = mustHaveMethods(testnetConfig);
+    return provider.send(methods.setCode, [address, bytecode]);
 }
 function setBalance(testnetConfig, provider, address, balance) {
-    return provider.send(testnetConfig.methods.setBalance, [address, balance]);
+    const methods = mustHaveMethods(testnetConfig);
+    return provider.send(methods.setBalance, [address, balance]);
 }
 function setStorage(testnetConfig, provider, address, storage) {
     if (!storage) {
         return Promise.resolve();
     }
+    const methods = mustHaveMethods(testnetConfig);
     const prom = [];
     for (const slot in storage) {
         const value = storage[slot];
-        prom.push(provider.send(testnetConfig.methods.setStorage, [address, slot, value]));
+        prom.push(provider.send(methods.setStorage, [address, slot, value]));
     }
     return Promise.all(prom);
 }
@@ -188,14 +204,18 @@ function createTickProvider(tickConfig) {
 }
 async function createSigner(tickConfig, provider) {
     const wallet = new Wallet(tickConfig.signerConfig.privateKey, provider);
-    await insertSigner(wallet.address, tickConfig, provider);
+    if (!tickConfig.testnetConfig.genesis) {
+        await insertSigner(wallet.address, tickConfig, provider);
+    }
     return wallet;
 }
 async function insertSigner(address, tickConfig, provider) {
     await setBalance(tickConfig.testnetConfig, provider, address, tickConfig.signerConfig.balance || "0x0");
 }
 async function createTickContract(signer, owner, tickConfig, provider) {
-    await insertTickContract(owner, tickConfig, provider);
+    if (!tickConfig.testnetConfig.genesis) {
+        await insertTickContract(owner, tickConfig, provider);
+    }
     const contractConfig = tickConfig.tickContractConfig;
     const contract = new Contract(contractConfig.address, contractConfig.abi, signer);
     return contract;
