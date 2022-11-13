@@ -40,6 +40,7 @@ export const tickTxConfig: TickTxConfig = {
 
 export const testnetConfigs: TestnetConfigs = {
   anvil: {
+    genesis: false,
     websocket: true,
     addresses: [],
     port: 8545,
@@ -48,5 +49,11 @@ export const testnetConfigs: TestnetConfigs = {
       setBalance: "anvil_setBalance",
       setStorage: "anvil_setStorageAt",
     },
+  },
+  geth: {
+    genesis: true,
+    websocket: true,
+    addresses: [],
+    port: 8545,
   },
 };

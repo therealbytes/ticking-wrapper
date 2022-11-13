@@ -21,15 +21,18 @@ export type TickCmdOptions = {
 
 export type TickTxConfig = { gasLimit?: number; gasPrice?: number };
 
+export type RPCMethods = {
+  setCode: string;
+  setBalance: string;
+  setStorage: string;
+};
+
 export type TestnetConfig = {
+  genesis: boolean;
   websocket: boolean;
   port: number;
   addresses: string[];
-  methods: {
-    setCode: string;
-    setBalance: string;
-    setStorage: string;
-  };
+  methods?: RPCMethods;
 };
 
 export type TickConfig = {

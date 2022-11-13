@@ -28,7 +28,9 @@ export async function createSigner(
   provider: JsonRpcProvider
 ): Promise<Wallet> {
   const wallet = new Wallet(tickConfig.signerConfig.privateKey, provider);
-  await insertSigner(wallet.address, tickConfig, provider);
+  if (!tickConfig.testnetConfig.genesis) {
+    await insertSigner(wallet.address, tickConfig, provider);
+  }
   return wallet;
 }
 
@@ -51,7 +53,9 @@ export async function createTickContract(
   tickConfig: TickConfig,
   provider: JsonRpcProvider
 ): Promise<Contract> {
-  await insertTickContract(owner, tickConfig, provider);
+  if (!tickConfig.testnetConfig.genesis) {
+    await insertTickContract(owner, tickConfig, provider);
+  }
   const contractConfig = tickConfig.tickContractConfig;
   const contract = new Contract(
     contractConfig.address,
