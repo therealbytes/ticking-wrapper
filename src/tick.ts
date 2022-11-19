@@ -10,6 +10,7 @@ import {
 import { Contract } from "@ethersproject/contracts";
 import { JsonRpcProvider, WebSocketProvider } from "@ethersproject/providers";
 import { toUtf8String } from "@ethersproject/strings";
+import { BigNumber } from "@ethersproject/bignumber";
 
 function sleep(ms: number): Promise<unknown> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,8 +23,10 @@ export async function tick(
   logger: Logger
 ) {
   logger.info("ticking...");
-  const basefee = (await tickContract.provider.getFeeData()).maxFeePerGas;
-  const gasPrice = basefee?.mul(10);
+  const minBasefee = BigNumber.from(1);
+  let basefee = (await tickContract.provider.getFeeData()).maxFeePerGas || minBasefee;
+  basefee = basefee.lt(minBasefee) ? minBasefee : basefee;
+  const gasPrice = basefee.mul(10);
   const txParams = { nonce, gasPrice, ...tickConfig.tickTxConfig };
   const tx = await tickContract.tick(txParams);
   const receipt = await tx.wait();
